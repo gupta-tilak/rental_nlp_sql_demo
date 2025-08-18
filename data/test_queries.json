@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "question": "What’s the occupancy rate of properties in Bradford last quarter?",
+    "gold_sql": "SELECT ROUND(100.0 * COUNT(DISTINCT b.property_id) / NULLIF(COUNT(DISTINCT p.property_id),0), 2) AS occupancy_rate FROM properties p LEFT JOIN bookings b ON p.property_id = b.property_id WHERE p.city='Bradford' AND b.start_date >= '2025-04-01' AND b.end_date <= '2025-06-30';",
+    "expected_answer": 100.0
+  },
+  {
+    "id": 2,
+    "question": "Top 10 tenants by rent paid",
+    "gold_sql": "SELECT u.first_name, u.last_name, SUM(pay.amount) AS total_paid FROM payments pay JOIN users u ON u.user_id = pay.tenant_id WHERE pay.status='successful' GROUP BY u.user_id ORDER BY total_paid DESC LIMIT 10;",
+    "expected_answer": [["Carol","Tenant",3600.0],["Dave","Tenant",2500.0]]
+  },
+  {
+    "id": 3,
+    "question": "Avg rating of apartments vs houses",
+    "gold_sql": "SELECT p.property_type, ROUND(AVG(r.rating),2) AS avg_rating FROM reviews r JOIN properties p ON r.property_id = p.property_id WHERE p.property_type IN ('apartment','house') GROUP BY p.property_type;",
+    "expected_answer": [["apartment",3.5],["house",5.0]]
+  },
+  {
+    "id": 4,
+    "question": "Landlords with most revenue this year",
+    "gold_sql": "SELECT u.first_name, u.last_name, SUM(pay.amount) AS total_revenue FROM payments pay JOIN bookings b ON pay.booking_id=b.booking_id JOIN properties p ON b.property_id=p.property_id JOIN users u ON u.user_id=p.landlord_id WHERE pay.status='successful' AND strftime('%Y', pay.payment_date) = '2025' GROUP BY u.user_id ORDER BY total_revenue DESC;",
+    "expected_answer": [["Alice","Landlord",6100.0]]
+  },
+  {
+    "id": 5,
+    "question": "Available 2BHKs under $2500 in London",
+    "gold_sql": "SELECT title, address, rent_price FROM properties WHERE city='London' AND bedrooms=2 AND rent_price < 2500 AND status='available';",
+    "expected_answer": [["Stylish Apt London","99 River Rd",2400.0]]
+  }
+]

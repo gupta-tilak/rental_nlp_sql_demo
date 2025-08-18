@@ -1,0 +1,19 @@
+app:
+  host: 127.0.0.1
+  port: 8000
+  debug: true
+
+nlp_to_sql:
+  engine: rule_based   # options: rule_based | hf
+  hf_model: google/flan-t5-base  # used only when engine==hf
+  temperature: 0.0
+  max_new_tokens: 128
+
+database:
+  driver: sqlite
+  path: data/rental_app.db
+  init_sql: data/rental_app.sql
+
+answers:
+  fallback_message: "Sorry, unable to answer at this point in time."
+  numeric_tolerance: 0.01
