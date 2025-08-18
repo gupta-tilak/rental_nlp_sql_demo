@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from .utils import load_config, format_result
 from .db_connector import get_db
 from .nlp_to_sql import NL2SQLRouter
+from .agentic import run_agentic_query
 
 app = FastAPI(title="Rental NLP→SQL Demo", version="0.1.0")
 router = NL2SQLRouter()
@@ -22,6 +23,14 @@ async def health():
 
 @app.post("/query")
 async def query(req: QueryRequest):
+    engine = config.get("nlp_to_sql", {}).get("engine", "rule_based")
+    if engine == "agent":
+        try:
+            output = run_agentic_query(req.query)
+            return {"status": "ok", "agent_output": output}
+        except Exception:
+            return {"status": "fallback", "message": config["answers"]["fallback_message"]}
+
     parsed = router.to_sql(req.query)
     if not parsed.sql:
         return {"status": "fallback", "message": config["answers"]["fallback_message"]}

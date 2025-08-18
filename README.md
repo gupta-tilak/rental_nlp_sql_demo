@@ -5,7 +5,7 @@ A fast, local Proof-of-Concept that converts natural language questions into SQL
 - Language: Python 3.10+
 - Framework: FastAPI
 - Database: SQLite (auto-initialized from `data/rental_app.sql`)
-- NL→SQL: Rule-based templates with optional HuggingFace fallback
+- NL→SQL: Rule-based templates, optional HuggingFace fallback, or Agentic LLM via smolagents
 
 ---
 
@@ -47,7 +47,8 @@ uvicorn src.app:app --reload
 - `GET /health` → health check
 - `POST /query` → body `{ "query": "Your natural language question" }`
   - Response:
-    - On success: `{ "sql": "...", "result": <number|list>, "status": "ok" }`
+    - On success (rule_based/hf): `{ "sql": "...", "result": <number|list>, "status": "ok" }`
+    - On success (agent): `{ "agent_output": "...", "status": "ok" }`
     - On fallback: `{ "message": "Sorry, unable to answer at this point in time.", "status": "fallback" }`
 
 Example
@@ -101,7 +102,11 @@ This computes:
 
 ## Notes
 
-- The rule-based engine covers common CXO-style questions and is designed for reliability in the demo. The optional HF fallback can attempt generalization but is not required for accuracy in this POC.
+- Modes:
+  - `rule_based`: deterministic templates for demo queries (default)
+  - `hf`: direct text-to-SQL using a small HF model
+  - `agent`: agentic SQL via smolagents with schema-aware tool and iterative refinement
+- Configure in `config.yaml` under `nlp_to_sql.engine`.
 - For complex or unsupported questions, the system answers gracefully with: "Sorry, unable to answer at this point in time."
 
 ---

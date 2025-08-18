@@ -4,8 +4,9 @@ app:
   debug: true
 
 nlp_to_sql:
-  engine: rule_based   # options: rule_based | hf
+  engine: agent   # options: rule_based | hf | agent
   hf_model: google/flan-t5-base  # used only when engine==hf
+  agent_model_id: meta-llama/Llama-3.1-8B-Instruct  # used only when engine==agent
   temperature: 0.0
   max_new_tokens: 128
 
