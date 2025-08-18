@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rental Insights - CXO Console</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Rental Insights</h1>
+    <p class="subtitle">Ask business questions in plain English</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <label for="query">Your question</label>
+      <textarea id="query" rows="3" placeholder="e.g., What's the occupancy rate in Bradford last quarter?"></textarea>
+      <div class="actions">
+        <button id="askBtn">Ask</button>
+        <span id="engineTag" class="tag">Engine: {{ engine }}</span>
+      </div>
+    </section>
+
+    <section class="card" id="answerCard" hidden>
+      <h2>Answer</h2>
+      <div id="answer"></div>
+      <div id="fallback" class="warning" hidden></div>
+
+      <details id="details" class="details">
+        <summary>Details</summary>
+        <pre id="sql"></pre>
+        <pre id="raw"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <small>© Rental NLP→SQL Demo</small>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
