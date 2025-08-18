@@ -29,3 +29,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .details pre { background: #0b1220; color: #93c5fd; padding: 12px; border-radius: 8px; overflow:auto; }
 #answer { font-size: 18px; }
 footer { text-align:center; color: var(--muted); padding: 24px; border-top: 1px solid var(--border);} 
+.samples { margin-top: 12px; }
+.sample-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.sample { background: transparent; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.sample:hover { border-color: var(--accent); }

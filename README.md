@@ -39,6 +39,13 @@ uvicorn src.app:app --reload
 ```
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
+- Frontend UI: `http://127.0.0.1:8000/`
+
+Optional: Agent mode (LLM)
+
+- Create `.env` with `HF_TOKEN=...` (see `.env.example`)
+- In `config.yaml` set `nlp_to_sql.engine: agent`
+- Restart the server
 
 ---
 
@@ -73,6 +80,7 @@ This computes:
 - SQL exact-match accuracy
 - Execution accuracy (numeric scalar answers with tolerance)
 - Writes a brief report to `report/accuracy_report.md`
+ - Report includes methodology: how the test set was built and scored.
 
 ---
 
@@ -97,6 +105,8 @@ This computes:
 - `tests/`
   - `test_app.py` — endpoint tests
   - `test_nlp_to_sql.py` — NL→SQL tests
+ - `templates/` & `static/` — CXO web UI
+ - `scripts/` — helper scripts to run API and evaluation
 
 ---
 

@@ -49,3 +49,10 @@ document.getElementById('query').addEventListener('keydown', (e) => {
     askQuestion();
   }
 });
+// Sample query buttons
+for (const btn of document.querySelectorAll('.sample')) {
+  btn.addEventListener('click', () => {
+    const q = btn.getAttribute('data-q');
+    document.getElementById('query').value = q;
+  });
+}
