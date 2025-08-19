@@ -69,7 +69,7 @@ def main() -> None:
             sql_match = None  # not applicable
 
             if isinstance(expected, (int, float)):
-                pred_value = _parse_agent_numeric(agent_output)
+                pred_value = _parse_agent_numeric(str(agent_output))
                 is_correct = almost_equal(pred_value, expected, tol)
             else:
                 # Non-numeric structured comparisons not supported for agent in this POC
