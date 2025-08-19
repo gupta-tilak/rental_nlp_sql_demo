@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Optional, Any
+from pathlib import Path
+import sqlite3
 import json
 
 from .utils import load_config, get_last_quarter as compute_last_quarter
@@ -16,6 +18,16 @@ def build_agent(model_id: Optional[str] = None):
     model_id = model_id or cfg["nlp_to_sql"].get("agent_model_id", "meta-llama/Llama-3.1-8B-Instruct")
 
     db_path = cfg["database"]["path"]
+    init_sql = cfg["database"].get("init_sql")
+
+    # Ensure DB directory exists and initialize from SQL if missing
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    if not Path(db_path).exists() and init_sql:
+        with sqlite3.connect(db_path) as conn:
+            with open(init_sql, "r", encoding="utf-8") as f:
+                conn.executescript(f.read())
+            conn.commit()
+
     engine_uri = f"sqlite:///{db_path}"
     engine = create_engine(engine_uri)
 
@@ -27,16 +39,28 @@ def build_agent(model_id: Optional[str] = None):
         "- City information is stored in table 'properties' as column 'city'. If you need to filter by city while working with 'bookings' or 'payments', JOIN via properties: \n"
         "  bookings b JOIN properties p ON b.property_id = p.property_id.\n"
         "- SQLite does NOT support 'INTERVAL' syntax. Use ISO dates like 'YYYY-MM-DD' directly in comparisons.\n"
+        "- Dates are stored as ISO text (YYYY-MM-DD) in this DB. Compare as strings or use strftime where needed.\n"
         "- Year extraction uses strftime('%Y', date_column). Example: strftime('%Y', pay.payment_date) = '2025'.\n"
-        "- For last quarter dates, call the provided tool get_last_quarter() and use the returned start/end dates (do NOT call it inside SQL).\n"
+        "- For last quarter dates, call get_last_quarter() and pass its return value directly as the params list for '?' placeholders (e.g., sql_select(\"... >= ? AND ... <= ?\", get_last_quarter())).\n"
         "- Always write correct SQL for SQLite.\n"
         "- Prefer returning final numeric answers directly using sql_scalar to avoid brittle parsing.\n"
         "- Parametrization: sql_scalar and sql_select accept an optional second argument 'params' as a list/tuple/JSON list for '?' placeholders. Example: sql_scalar(\"SELECT ... WHERE x >= ? AND y <= ?\", [d1, d2]).\n"
-        "Available tables and columns:"
+        "Available tables, columns, and foreign keys:"
     )
     for table in table_names:
         columns_info = [(col["name"], str(col["type"])) for col in inspector.get_columns(table)]
+        fks = inspector.get_foreign_keys(table)
+        fk_lines = []
+        for fk in fks:
+            referred_table = fk.get("referred_table")
+            con_cols = fk.get("constrained_columns") or []
+            ref_cols = fk.get("referred_columns") or []
+            if referred_table and con_cols and ref_cols:
+                pairs = ", ".join([f"{c} -> {referred_table}.{r}" for c, r in zip(con_cols, ref_cols)])
+                fk_lines.append(f"  - {pairs}")
         table_desc = f"\n\nTable '{table}':\nColumns:\n" + "\n".join([f"  - {name}: {ctype}" for name, ctype in columns_info])
+        if fk_lines:
+            table_desc += "\nForeign Keys:\n" + "\n".join(fk_lines)
         schema_description += table_desc
 
     @tool
@@ -111,7 +135,9 @@ def build_agent(model_id: Optional[str] = None):
         Use these dates for filtering ranges in SQLite.
         """
         start, end = compute_last_quarter()
-        return json.dumps({"start_date": start.isoformat(), "end_date": end.isoformat()})
+        # Return a JSON array so it can be directly used as params for '?' placeholders
+        # in sql_select/sql_scalar without needing extra parsing/imports.
+        return json.dumps([start.isoformat(), end.isoformat()])
 
     # Attach helpful descriptions to tools
     sql_select.description = (
@@ -119,14 +145,17 @@ def build_agent(model_id: Optional[str] = None):
         + "\n\nTip: To filter by city for bookings: JOIN properties p ON p.property_id = b.property_id and use p.city."
     )
     sql_scalar.description = (
-        "Use this when you need a single number (COUNT, SUM, AVG, etc.). "
+        schema_description
+        + "\n\nUse this when you need a single number (COUNT, SUM, AVG, etc.). "
         "Example occupancy rate pattern: \n"
         "1) Use get_last_quarter() to get dates d1,d2.\n"
         "2) Compute numerator = COUNT(DISTINCT b.property_id) from bookings b JOIN properties p ON b.property_id=p.property_id WHERE p.city='CITY' AND b.start_date>=d1 AND b.end_date<=d2.\n"
         "3) Compute denominator = COUNT(DISTINCT p.property_id) from properties p WHERE p.city='CITY'.\n"
         "4) Compute 100.0 * numerator / NULLIF(denominator,0)."
     )
-    get_last_quarter.description = "Get last quarter date boundaries as JSON."
+    get_last_quarter.description = (
+        "Get last quarter date boundaries as a JSON array [start_date, end_date]. Use it directly as params."
+    )
 
     model = InferenceClientModel(model_id=model_id)
     agent = CodeAgent(tools=[sql_select, sql_scalar, get_last_quarter], model=model)

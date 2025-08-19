@@ -119,10 +119,10 @@ INSERT INTO payments(payment_id, booking_id, tenant_id, amount, payment_date, st
   (2003,1003,5,1500,'2025-07-02','initiated','upi');
 
 -- Seed reviews
-INSERT INTO reviews(review_id, property_id, tenant_id, rating, comment) VALUES
-  (3001,101,3,4,'Nice place'),
-  (3002,102,4,5,'Great house'),
-  (3003,105,5,3,'Average');
+INSERT INTO reviews(review_id, property_id, tenant_id, rating, comment, created_at) VALUES
+  (3001,101,3,4,'Nice place','2025-05-15'),
+  (3002,102,4,5,'Great house','2025-04-20'),
+  (3003,105,5,3,'Average','2025-06-10');
 
 -- Photos and favorites (minimal)
 INSERT INTO property_photos(photo_id, property_id, photo_url) VALUES

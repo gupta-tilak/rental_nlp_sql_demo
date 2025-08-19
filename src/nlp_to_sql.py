@@ -112,16 +112,25 @@ class HFNL2SQL:
         )
 
     def parse(self, question: str) -> NL2SQLResult:
+        # Build live schema string from the configured DB
+        from .utils import load_config
+        from sqlalchemy import create_engine, inspect  # type: ignore
+        cfg = load_config()
+        db_path = cfg["database"]["path"]
+        engine = create_engine(f"sqlite:///{db_path}")
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        parts: list[str] = []
+        for t in tables:
+            cols = ", ".join([c["name"] for c in inspector.get_columns(t)])
+            parts.append(f"{t}({cols})")
+        schema_str = "; ".join(parts)
         prompt = (
-            "You are an expert text-to-SQL translator for a SQLite database with tables: "
-            "users(user_id, first_name, last_name, email, phone, role, created_at); "
-            "properties(property_id, landlord_id, title, description, property_type, address, city, state, country, bedrooms, bathrooms, rent_price, status, listed_at); "
-            "bookings(booking_id, property_id, tenant_id, start_date, end_date, status, created_at); "
-            "payments(payment_id, booking_id, tenant_id, amount, payment_date, status, method); "
-            "reviews(review_id, property_id, tenant_id, rating, comment, created_at); "
-            "property_photos(photo_id, property_id, photo_url, uploaded_at); "
-            "favorites(tenant_id, property_id, added_at).\n"
-            "Write a single valid SQLite SQL query. No commentary.\nQuestion: " + question
+            "You are an expert text-to-SQL translator for a SQLite database. "
+            "Use only the provided schema. Write a single valid SQLite SQL query ending with a semicolon.\n"
+            f"Schema: {schema_str}.\n"
+            "Guidelines: Dates are ISO text (YYYY-MM-DD). SQLite lacks INTERVAL. Use strftime('%Y', col) for year.\n"
+            "Question: " + question
         )
         out = self.pipe(prompt, max_new_tokens=128)
         text = out[0]["generated_text"].strip()
