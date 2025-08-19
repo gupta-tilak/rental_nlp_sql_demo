@@ -36,8 +36,21 @@ def build_agent(model_id: Optional[str] = None):
     table_names = inspector.get_table_names()
     schema_description = (
         "You can query the SQLite database. Important guidelines for this schema and SQLite: \n"
-        "- City information is stored in table 'properties' as column 'city'. If you need to filter by city while working with 'bookings' or 'payments', JOIN via properties: \n"
-        "  bookings b JOIN properties p ON b.property_id = p.property_id.\n"
+        "- Always inspect all relevant tables and their relationships before writing SQL.\n"
+        "- For multi-table queries, use explicit JOINs and qualify column names with table aliases.\n"
+        "- City information is stored in table 'properties' as column 'city'. To filter by city in 'bookings' or 'payments', JOIN via properties: \n"
+        "    bookings b JOIN properties p ON b.property_id = p.property_id\n"
+        "    payments pay JOIN bookings b ON pay.booking_id = b.booking_id JOIN properties p ON b.property_id = p.property_id\n"
+        "- For tenant or landlord info, JOIN users u ON u.user_id = ... (tenant_id or landlord_id).\n"
+        "- Example: Top tenants by rent paid: \n"
+        "    SELECT u.first_name, u.last_name, SUM(pay.amount) as total_rent\n"
+        "    FROM payments pay JOIN bookings b ON pay.booking_id = b.booking_id\n"
+        "    JOIN users u ON b.tenant_id = u.user_id\n"
+        "    GROUP BY u.user_id ORDER BY total_rent DESC LIMIT 10;\n"
+        "- Example: Occupancy rate in a city last quarter: \n"
+        "    SELECT 100.0 * COUNT(DISTINCT b.property_id) / NULLIF(COUNT(DISTINCT p.property_id), 0)\n"
+        "    FROM bookings b JOIN properties p ON b.property_id = p.property_id\n"
+        "    WHERE p.city = 'CITY' AND b.start_date >= ? AND b.end_date <= ?\n"
         "- SQLite does NOT support 'INTERVAL' syntax. Use ISO dates like 'YYYY-MM-DD' directly in comparisons.\n"
         "- Dates are stored as ISO text (YYYY-MM-DD) in this DB. Compare as strings or use strftime where needed.\n"
         "- Year extraction uses strftime('%Y', date_column). Example: strftime('%Y', pay.payment_date) = '2025'.\n"
@@ -45,7 +58,9 @@ def build_agent(model_id: Optional[str] = None):
         "- Always write correct SQL for SQLite.\n"
         "- Prefer returning final numeric answers directly using sql_scalar to avoid brittle parsing.\n"
         "- Parametrization: sql_scalar and sql_select accept an optional second argument 'params' as a list/tuple/JSON list for '?' placeholders. Example: sql_scalar(\"SELECT ... WHERE x >= ? AND y <= ?\", [d1, d2]).\n"
-        "Available tables, columns, and foreign keys:"
+        "- If a column name is ambiguous, always qualify it with the table alias.\n"
+        "- For best performance, use GROUP BY and ORDER BY only when needed.\n"
+        "- Available tables, columns, and foreign keys:"
     )
     for table in table_names:
         columns_info = [(col["name"], str(col["type"])) for col in inspector.get_columns(table)]
