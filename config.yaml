@@ -5,7 +5,7 @@ app:
 
 nlp_to_sql:
   engine: agent   # options: rule_based | hf | agent
-  hf_model: google/flan-t5-base  # used only when engine==hf
+  hf_model: Ellbendls/Qwen-2.5-3b-Text_to_SQL  # used only when engine==hf
   agent_model_id: meta-llama/Llama-3.1-8B-Instruct  # used only when engine==agent
   temperature: 0.0
   max_new_tokens: 128

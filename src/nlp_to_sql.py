@@ -105,14 +105,25 @@ class RuleBasedNL2SQL:
 
 class HFNL2SQL:
     def __init__(self, model_name: str) -> None:
-        from transformers import pipeline  # type: ignore
+        print(f"[HFNL2SQL] Initializing HuggingFace pipeline with model: {model_name}")
+        from transformers import pipeline, AutoConfig  # type: ignore
+
+        # Detect model architecture
+        cfg = AutoConfig.from_pretrained(model_name)
+        if cfg.model_type in ["t5", "bart", "mbart", "mt5", "pegasus", "marian"]:
+            task = "text2text-generation"   # encoder-decoder
+        else:
+            task = "text-generation"        # decoder-only (e.g., GPT/Qwen)
+
         self.pipe = pipeline(
-            "text2text-generation",
+            task,
             model=model_name,
         )
+        print(f"[HFNL2SQL] Pipeline ready (using task={task}).")
 
     def parse(self, question: str) -> NL2SQLResult:
-        # Build live schema string from the configured DB
+        print(f"[HFNL2SQL] Received question: {question}")
+        # Build detailed schema string from the configured DB
         from .utils import load_config
         from sqlalchemy import create_engine, inspect  # type: ignore
         cfg = load_config()
@@ -120,22 +131,49 @@ class HFNL2SQL:
         engine = create_engine(f"sqlite:///{db_path}")
         inspector = inspect(engine)
         tables = inspector.get_table_names()
-        parts: list[str] = []
+        schema_lines: list[str] = []
         for t in tables:
-            cols = ", ".join([c["name"] for c in inspector.get_columns(t)])
-            parts.append(f"{t}({cols})")
-        schema_str = "; ".join(parts)
+            schema_lines.append(f"Table: {t}")
+            columns = inspector.get_columns(t)
+            pk = inspector.get_pk_constraint(t).get("constrained_columns", [])
+            fks = inspector.get_foreign_keys(t)
+            for col in columns:
+                col_line = f"  - {col['name']}: {col['type']}"
+                if col['name'] in pk:
+                    col_line += " [PK]"
+                # Check if FK
+                fk_note = ""
+                for fk in fks:
+                    if col['name'] in fk.get("constrained_columns", []):
+                        ref_table = fk.get("referred_table")
+                        ref_col = fk.get("referred_columns", [None])[0]
+                        fk_note = f" [FK -> {ref_table}.{ref_col}]"
+                col_line += fk_note
+                schema_lines.append(col_line)
+            if fks:
+                for fk in fks:
+                    ref_table = fk.get("referred_table")
+                    con_cols = fk.get("constrained_columns", [])
+                    ref_cols = fk.get("referred_columns", [])
+                    if ref_table and con_cols and ref_cols:
+                        pairs = ", ".join([f"{c} -> {ref_table}.{r}" for c, r in zip(con_cols, ref_cols)])
+                        schema_lines.append(f"  Foreign Key: {pairs}")
+            schema_lines.append("")
+        schema_str = "\n".join(schema_lines)
         prompt = (
             "You are an expert text-to-SQL translator for a SQLite database. "
             "Use only the provided schema. Write a single valid SQLite SQL query ending with a semicolon.\n"
-            f"Schema: {schema_str}.\n"
+            f"Schema:\n{schema_str}\n"
             "Guidelines: Dates are ISO text (YYYY-MM-DD). SQLite lacks INTERVAL. Use strftime('%Y', col) for year.\n"
             "Question: " + question
         )
+        print(f"[HFNL2SQL] Prompt to model:\n{prompt}")
         out = self.pipe(prompt, max_new_tokens=128)
+        print(f"[HFNL2SQL] Model output: {out}")
         text = out[0]["generated_text"].strip()
         if not text.endswith(";"):
             text += ";"
+        print(f"[HFNL2SQL] Final SQL: {text}")
         return NL2SQLResult(sql=text)
 
 
@@ -144,8 +182,10 @@ class NL2SQLRouter:
         cfg = load_config()
         engine = cfg.get("nlp_to_sql", {}).get("engine", "rule_based")
         if engine == "hf":
+            print(f"[NL2SQLRouter] Using HuggingFace engine: {cfg['nlp_to_sql']['hf_model']}")
             self.engine = HFNL2SQL(cfg["nlp_to_sql"]["hf_model"])  # type: ignore
         else:
+            print(f"[NL2SQLRouter] Using rule-based engine.")
             self.engine = RuleBasedNL2SQL()
 
     def to_sql(self, question: str) -> NL2SQLResult:
