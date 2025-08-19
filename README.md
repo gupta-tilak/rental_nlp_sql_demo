@@ -22,6 +22,17 @@
 
 This POC enables users to ask business questions about a rental marketplace in plain English. The system translates these questions into SQL, executes them on a local SQLite database, and returns the results. It supports multiple NL→SQL engines: rule-based templates, HuggingFace models, and agentic LLMs via smolagents.
 
+Here are a few screenshots of the project in action:
+
+- **Home Page**
+  ![Home Page](docs/images/ui_home.png)
+
+- **Query Input & Results**
+  ![Query Execution](docs/images/ui_query.png)
+
+- **Swagger API Docs**
+  ![Swagger Docs](docs/images/ui_swagger.png)
+
 ---
 
 ## Architecture & Technologies
@@ -239,8 +250,3 @@ This computes:
 - Configure in `config.yaml` under `nlp_to_sql.engine`.
 - For complex or unsupported questions, the system answers gracefully with: "Sorry, unable to answer at this point in time."
 
----
-
-## License
-
-MIT
